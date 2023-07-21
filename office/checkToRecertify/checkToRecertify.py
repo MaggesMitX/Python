@@ -100,7 +100,7 @@ if __name__ == "__main__":
                     break
 
                 try:
-                    files = project.files.get(file_path = FILE_PATH, ref = branch_name)
+                    files = project.files.get(file_path=FILE_PATH, ref=branch_name)
                     file_content = base64.b64decode(files.content).decode("utf-8")
                 except Exception as e:
                     print(f"Fehler: {e}", " ", project.name)
