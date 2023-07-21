@@ -1,2 +1,2 @@
 # Python
-Python stuff from home and Office (Note: permanent private!)
+Python stuff from home and Office
