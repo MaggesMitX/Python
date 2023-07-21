@@ -1,6 +1,7 @@
 import gitlab
 import base64
 import json
+import time
 
 with open('../../config.json') as config_file:
     data = json.load(config_file)
@@ -16,52 +17,56 @@ FILE_PATH = "customerCA/serial"
 FILTERED_PROJECTS = []
 
 
-class Methods():
-    def connect_to_gitlab(self):
-        return gitlab.Gitlab(URL, private_token = TOKEN, api_version = "4")
+def connect_to_gitlab():
+    return gitlab.Gitlab(URL, private_token = TOKEN, api_version = "4")
 
-    def get_group_projects(gl, groupId):
-        group = gl.groups.get(groupId)
-        projects = group.projects.list(all = True)
-        return projects
+def get_group_projects(gl, groupId):
+    group = gl.groups.get(groupId)
+    projects = group.projects.list(all = True)
+    return projects
 
-    def show_groups(self):
-        if not projects:
-            print(f"Keine Repositories in der Gruppe '{CUSTOMER_GROUP_ID}' gefunden.")
-        else:
-            print(f"Alle Repositories in der Gruppe '{CUSTOMER_GROUP_ID}':")
-            c = 0
-            for project in projects:
-                print(f"{project.id}: {project.name}")
-                c += 1
-            return print(f"Anzahl an Projekten:{c}")
-
-    def filter_by_creation(projects, start_date, end_date):
-        filtered_projects = FILTERED_PROJECTS
-        for project in projects:
-            created_at = project.created_at
-            if created_at and start_date <= created_at <= end_date:
-                filtered_projects.append(project)
-        print("\nGefilterte Projekte:")
+def show_groups(self):
+    if not projects:
+        print(f"Keine Repositories in der Gruppe '{CUSTOMER_GROUP_ID}' gefunden.")
+    else:
+        print(f"Alle Repositories in der Gruppe '{CUSTOMER_GROUP_ID}':")
         c = 0
-        for project in filtered_projects:
+        for project in projects:
             print(f"{project.id}: {project.name}")
             c += 1
-        return print(f"Anzahl der gefilterten Projekte: {c}")
+        return print(f"Anzahl an Projekten:{c}")
 
-    def print_formatted_list_of_dicts(list):
-        for idx, dictionary in enumerate(list):
-            print(f"Dictionary {idx + 1}:")
-            for key, value in dictionary.items():
-                print(f"    {key}: {value}")
+def filter_by_creation(projects, start_date, end_date):
+    filtered_projects = FILTERED_PROJECTS
+    for project in projects:
+        created_at = project.created_at
+        if created_at and start_date <= created_at <= end_date:
+            filtered_projects.append(project)
+    print("\nGefilterte Projekte:")
+    c = 0
+    for project in filtered_projects:
+        print(f"{project.id}: {project.name}")
+        c += 1
+    return print(f"Anzahl der gefilterten Projekte: {c}")
 
-    def print_formatted_list(list):
-        for idx, dictionary in enumerate(list):
-            print(f"Dictionary {idx + 1}:")
-            for key, value in dictionary.items():
-                print(f"    {key}: {value}")
-            print()
+def print_formatted_list_of_dicts(list):
+    for idx, dictionary in enumerate(list):
+        print(f"Dictionary {idx + 1}:")
+        for key, value in dictionary.items():
+            print(f"    {key}: {value}")
 
+def print_formatted_list(list):
+    for idx, dictionary in enumerate(list):
+        print(f"Dictionary {idx + 1}:")
+        for key, value in dictionary.items():
+            print(f"    {key}: {value}")
+        print()
+
+def estimated_time_counter(current_item, total_items, start_time):
+    elapsed_time = time.time() - start_time
+    items_left = total_items - current_item
+    estimated_time_remaining = (elapsed_time / current_item) * items_left
+    print(f"Progress: {current_item}/{total_items} - Elapsed Time: {elapsed_time:.2f}s - Estimated Time Remaining: {estimated_time_remaining:.2f}s")
 
 if __name__ == "__main__":
     try:
@@ -71,6 +76,7 @@ if __name__ == "__main__":
         customerList = []
 
         if projects:
+            sTime = time.time()
             for idx, project_tmp in enumerate(projects):
                 project_id = project_tmp.id
                 project = connection.projects.get(project_id)
@@ -113,7 +119,8 @@ if __name__ == "__main__":
                             "last_commit_date": commit_date
                         }
                         customerList.append(dict)
-            Methods.print_formatted_list(customerList)
+                    estimated_time_counter(idx + 1, len(projects), sTime)
+            print_formatted_list(customerList)
 
     except Exception as e:
         print(f"Fehler: {e}")
