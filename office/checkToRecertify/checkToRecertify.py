@@ -20,12 +20,14 @@ FILTERED_PROJECTS = []
 def connect_to_gitlab():
     return gitlab.Gitlab(URL, private_token = TOKEN, api_version = "4")
 
+
 def get_group_projects(gl, groupId):
     group = gl.groups.get(groupId)
     projects = group.projects.list(all = True)
     return projects
 
-def show_groups(self):
+
+def show_groups():
     if not projects:
         print(f"Keine Repositories in der Gruppe '{CUSTOMER_GROUP_ID}' gefunden.")
     else:
@@ -35,6 +37,7 @@ def show_groups(self):
             print(f"{project.id}: {project.name}")
             c += 1
         return print(f"Anzahl an Projekten:{c}")
+
 
 def filter_by_creation(projects, start_date, end_date):
     filtered_projects = FILTERED_PROJECTS
@@ -49,11 +52,13 @@ def filter_by_creation(projects, start_date, end_date):
         c += 1
     return print(f"Anzahl der gefilterten Projekte: {c}")
 
+
 def print_formatted_list_of_dicts(list):
     for idx, dictionary in enumerate(list):
         print(f"Dictionary {idx + 1}:")
         for key, value in dictionary.items():
             print(f"    {key}: {value}")
+
 
 def print_formatted_list(list):
     for idx, dictionary in enumerate(list):
@@ -62,14 +67,18 @@ def print_formatted_list(list):
             print(f"    {key}: {value}")
         print()
 
+
 def estimated_time_counter(current_item, total_items, start_time):
     elapsed_time = time.time() - start_time
     items_left = total_items - current_item
     estimated_time_remaining = (elapsed_time / current_item) * items_left
-    print(f"Progress: {current_item}/{total_items} - Elapsed Time: {elapsed_time:.2f}s - Estimated Time Remaining: {estimated_time_remaining:.2f}s")
+    print(
+        f"Progress: {current_item}/{total_items} - Elapsed Time: {elapsed_time:.2f}s - Estimated Time Remaining: {estimated_time_remaining:.2f}s")
+
 
 if __name__ == "__main__":
     try:
+
         connection = connect_to_gitlab()
         connection.auth()
         projects = get_group_projects(connection, CUSTOMER_GROUP_ID)
@@ -86,12 +95,10 @@ if __name__ == "__main__":
                     if branch.name == "master" or branch.name == "main":
                         branch_name = branch.name
                         break
-
                 if branch_name != "master" and branch_name != "main":
                     print("No master or main branch found for project", project.name)
                     break
 
-                # Dateiinhalt und letzten Commit abrufen
                 try:
                     files = project.files.get(file_path = FILE_PATH, ref = branch_name)
                     file_content = base64.b64decode(files.content).decode("utf-8")
@@ -99,11 +106,9 @@ if __name__ == "__main__":
                     print(f"Fehler: {e}", " ", project.name)
                 else:
 
-                    # Zeitstempel des letztens commit der Datei
                     last_commit_id = files.last_commit_id
                     last_commit = project.commits.get(files.last_commit_id)
                     commit_date = last_commit.authored_date
-
                     commits_before_target_date = []
 
                     if commit_date < TO_RECTIFY:
@@ -112,15 +117,19 @@ if __name__ == "__main__":
                             commit_date_attr = commit.attributes['committed_date']
                             commit_date = commit_date_attr
                             commits_before_target_date.append(commit)
-
                         dict = {
                             "projectId": project_id,
                             "projectName": project.name,
                             "last_commit_date": commit_date
                         }
                         customerList.append(dict)
+
                     estimated_time_counter(idx + 1, len(projects), sTime)
+
             print_formatted_list(customerList)
+            eTime = time.time()
+            elapsed_time = eTime - sTime
+            print(f"\nTotal time taken: {elapsed_time:.2f} seconds")
 
     except Exception as e:
         print(f"Fehler: {e}")
