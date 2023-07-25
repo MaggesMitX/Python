@@ -9,21 +9,21 @@ with open('../../config.json') as config_file:
 URL = "https://gitlab.com"
 CUSTOMER_GROUP_ID = data['Group_ID']
 TOKEN = data['Auth_Token']
-STAMP_START = "2020-01-01T00:00:00.000Z"  # "YYYY-MM-DDTHH:MM:SS.sssZ" Format
+STAMP_START = "2020-01-01T00:00:00.000Z"
 STAMP_END = "2023-07-20T00:00:00.000Z"
-TO_RECTIFY = "2023-04-05T00:00:00.000Z"  # Alles was älter ist, als der 4te April 23
+TO_RECERTIFY = "2023-04-05T00:00:00.000Z"
 PROJECT_ID = data['Project_ID']
 FILE_PATH = "customerCA/serial"
 FILTERED_PROJECTS = []
 
 
 def connect_to_gitlab():
-    return gitlab.Gitlab(URL, private_token = TOKEN, api_version = "4")
+    return gitlab.Gitlab(URL, private_token=TOKEN, api_version="4")
 
 
 def get_group_projects(gl, groupId):
     group = gl.groups.get(groupId)
-    projects = group.projects.list(all = True)
+    projects = group.projects.list(all=True)
     return projects
 
 
@@ -100,7 +100,7 @@ if __name__ == "__main__":
                     break
 
                 try:
-                    files = project.files.get(file_path = FILE_PATH, ref = branch_name)
+                    files = project.files.get(file_path=FILE_PATH, ref=branch_name)
                     file_content = base64.b64decode(files.content).decode("utf-8")
                 except Exception as e:
                     print(f"Fehler: {e}", " ", project.name)
@@ -111,8 +111,8 @@ if __name__ == "__main__":
                     commit_date = last_commit.authored_date
                     commits_before_target_date = []
 
-                    if commit_date < TO_RECTIFY:
-                        commits = project.commits.list(since = STAMP_START, get_all = True)
+                    if commit_date < TO_RECERTIFY:
+                        commits = project.commits.list(since=STAMP_START, get_all=True)
                         for commit in commits:
                             commit_date_attr = commit.attributes['committed_date']
                             commit_date = commit_date_attr
