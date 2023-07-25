@@ -14,12 +14,9 @@ STAMP_START = "2020-01-01T00:00:00.000Z"  # "YYYY-MM-DDTHH:MM:SS.sssZ" Format
 STAMP_END = "2023-07-20T00:00:00.000Z"
 TO_RECTIFY = "2023-04-05T00:00:00.000Z"  # Alles was älter ist, als der 4te April 23
 PROJECT_ID = data['Project_ID']
-FILE_PATH = "customerCA/keys/ta-config_keystore.jks"
-YAML1 = "deployment.yml_DEPRECATED"
-YAML2 = "deploymentState.yml"
+FILE_PATH = 'deploymentState.yml'
+YAML_OLD = "deployment.yml_DEPRECATED"
 FILTERED_PROJECTS = []
-
-
 def connect_to_gitlab():
     return gitlab.Gitlab(URL, private_token = TOKEN, api_version = "4")
 
@@ -79,35 +76,49 @@ def estimated_time_counter(current_item, total_items, start_time):
         f"Progress: {current_item}/{total_items} - Elapsed Time: {elapsed_time:.2f}s - Estimated Time Remaining: {estimated_time_remaining:.2f}s")
 
 
-def check_file_in_project(project, file_path):
-    """
-    Überprüft, ob eine Datei in einem Projekt vorhanden ist.
-
-    Parameters:
-        project (gitlab.Project): Das GitLab-Projekt, in dem nach der Datei gesucht werden soll.
-        file_path (str): Der Pfad zur Datei, die überprüft werden soll.
-
-    Returns:
-        bool: True, wenn die Datei im Projekt existiert, False sonst.
-    """
+def check_file_in_project(project, file_path, branch):
     try:
-        branch_name = "master"
-        files = project.files.get(file_path = file_path, ref = branch_name)
+        file = project.files.get(file_path = file_path, ref = branch)
+        file_content = base64.b64decode(file.content).decode("utf-8")
+        #print("File found in storage!")
+        #print(file_content)
         return True
     except gitlab.exceptions.GitlabGetError:
         return False
 
+def process_project_files(project, branch_name):
+    try:
+        yml_new = None
+        yml_old = None
 
-def load_yaml_file(file_path):
-    with open(file_path, 'r') as file:
-        return yaml.safe_load(file)
+        if check_file_in_project(project, FILE_PATH, branch_name):
+            print("A file has been found! : deploymentState.yml")
+            with open(FILE_PATH, 'r') as file:
+                new_data = yaml.safe_load(file)
+            yml_new = new_data['configuration']['hostname']
+            print("Data from new YAML", yml_new)
 
+        if check_file_in_project(project, YAML_OLD, branch_name):
+            print("A file has been found! : deployment.yml_DEPRECATED")
+            with open(YAML_OLD, 'r') as f:
+                old_data = yaml.safe_load(f)
+            yml_old = old_data['hostname']
+            print("Data from old YAML", yml_old)
 
+        if yml_old is None and yml_new is None:
+            print("One or both files not found, or no matching hostnames in the repository.")
+        else:
+            return yml_new, yml_old
+
+    except Exception as e:
+        print(f"Fehler: {e}", " ", project.name)
+        return None, None
 
 
 if __name__ == "__main__":
+    yml_old = ""
+    yml_new = ""
     try:
-
         connection = connect_to_gitlab()
         connection.auth()
         projects = get_group_projects(connection, CUSTOMER_GROUP_ID)
@@ -128,29 +139,14 @@ if __name__ == "__main__":
                     print("No master or main branch found for project", project.name)
                     break
 
-                try:
-                    files = project.files.get(file_path = FILE_PATH, ref = branch_name)
-                    file_content = base64.b64decode(files.content).decode("utf-8")
+                yml_new, yml_old = process_project_files(project, branch_name)
 
-                except Exception as e:
-                    print(f"Fehler: {e}", " ", project.name)
-
-                try:
-                    if YAML1 and YAML2:
-                        yaml_file = open(YAML1, 'r')
-                        yaml_file2 = open(YAML2, 'r')
-                        yaml_content = yaml.load(yaml_file)
-                        yaml_content2 = yaml.load(yaml_file2)
-
-                        for key, value in yaml_content.items():
-                            print(f"{key}: {value}: Aus YML File 1")
-                except Exception as e:
-                        print(f"Fehler: {e}", " ")
-
-                if not check_file_in_project(project, FILE_PATH):
+                if not yml_old == "ta.kampf.de" and yml_new == "ta.kampf.de":
                     dict = {
                         "projectId": project_id,
-                        "projectName": project.name
+                        "projectName": project.name,
+                        "Hostname new": yml_new,
+                        "Hostname old": yml_old
                     }
                     customerList.append(dict)
 
