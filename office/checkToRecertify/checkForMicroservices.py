@@ -18,6 +18,8 @@ PROJECT_ID = data['Project_ID']
 FILE_PATH = "deploymentState.yml"
 YAML_OLD = "deployment.yml_DEPRECATED"
 FILTERED_PROJECTS = []
+
+
 def connect_to_gitlab():
     return gitlab.Gitlab(URL, private_token = TOKEN, api_version = "4")
 
@@ -30,14 +32,14 @@ def get_group_projects(gl, groupId):
 
 def show_groups():
     if not projects:
-        print(f"Keine Repositories in der Gruppe '{CUSTOMER_GROUP_ID}' gefunden.")
+        print(f"No Repository in Group: '{CUSTOMER_GROUP_ID}' found.")
     else:
-        print(f"Alle Repositories in der Gruppe '{CUSTOMER_GROUP_ID}':")
+        print(f"Alle Repositorys list: '{CUSTOMER_GROUP_ID}':")
         c = 0
         for project in projects:
             print(f"{project.id}: {project.name}")
             c += 1
-        return print(f"Anzahl an Projekten:{c}")
+        return print(f"Numbers of projects:{c}")
 
 
 def filter_by_creation(projects, start_date, end_date):
@@ -46,12 +48,12 @@ def filter_by_creation(projects, start_date, end_date):
         created_at = project.created_at
         if created_at and start_date <= created_at <= end_date:
             filtered_projects.append(project)
-    print("\nGefilterte Projekte:")
+    print("\nfiltered projects:")
     c = 0
     for project in filtered_projects:
         print(f"{project.id}: {project.name}")
         c += 1
-    return print(f"Anzahl der gefilterten Projekte: {c}")
+    return print(f"Numbers of filtered projects: {c}")
 
 
 def print_formatted_list_of_dicts(list):
@@ -68,13 +70,14 @@ def print_formatted_list(list):
             print(f"    {key}: {value}")
         print()
 
+
 def export_to_csv(data_list):
     output_file = "customer_data.csv"
     fieldnames = ["projectId", "projectName", "Hostname new", "Hostname old"]
 
     try:
-        with open(output_file, mode="w", newline="", encoding="utf-8") as file:
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
+        with open(output_file, mode = "w", newline = "", encoding = "utf-8") as file:
+            writer = csv.DictWriter(file, fieldnames = fieldnames)
             writer.writeheader()
             for item in data_list:
                 writer.writerow(item)
@@ -103,6 +106,7 @@ def check_file_in_project(project, file_path, branch):
     except gitlab.exceptions.GitlabGetError:
         return False
 
+
 def process_project_files(project, branch_name):
     try:
         hostname = None
@@ -111,26 +115,24 @@ def process_project_files(project, branch_name):
         file_content = check_file_in_project(project, FILE_PATH, branch_name)
         file_content_old = check_file_in_project(project, YAML_OLD, branch_name)
 
-        if file_content:    # hier kommt der Hostname der deploymentState.yml an
+        if file_content:
             print("A file has been found! : deploymentState.yml")
-            #print(file_content['configuration']['hostname'])
             hostname = file_content['configuration']['hostname']
 
             if hostname == 'ta.kampf.de':
-                print("Alles richtig! Die Datei 'deploymentState.yml' enthält: ", hostname)
+                print("Alright! The data 'deploymentState.yml' is in : ", hostname)
             else:
-                print("Value ist nicht ta.kampf.de sondern: ", hostname)
-
+                print("value ta.kampf.de ist not in: ", hostname)
 
         if file_content_old:
             print("A file has been found! : deployment.yml_DEPRECATED")
-            print(file_content_old['hostname'])  # deprecated hat andere structure!
+            print(file_content_old['hostname'])
             hostname_old = file_content_old['hostname']
 
             if hostname_old == 'ta.kampf.de':
-                print("Alles richtig! Die Datei 'deployment.yml_DEPRECATED' enthält: ", hostname_old)
+                print("Alright! The data 'deployment.yml_DEPRECATED' is in: ", hostname_old)
             else:
-                print("Der Hostname ist nicht ta.kampf.de sondern:", hostname_old)
+                print("value ta.kampf.de ist not in:", hostname_old)
 
         if hostname is None or hostname_old is None:
             print("One or both files not found, or no matching hostnames in the repository.")
@@ -138,9 +140,8 @@ def process_project_files(project, branch_name):
 
 
     except Exception as e:
-        print(f"Fehler: {e}", " ", project.name)
+        print(f"Error: {e}", " ", project.name)
         return None, None
-
 
 
 if __name__ == "__main__":
@@ -167,7 +168,8 @@ if __name__ == "__main__":
                     print("No master or main branch found for project", project.name)
                     break
 
-                hostname, hostname_old = process_project_files(project, branch_name) # rückgabe wert aus der oberen Funktion
+                hostname, hostname_old = process_project_files(project,
+                                                               branch_name)  # rückgabe wert aus der oberen Funktion
 
                 if not hostname_old == hostname:
                     dict = {
@@ -187,4 +189,4 @@ if __name__ == "__main__":
             export_to_csv(customerList)
 
     except Exception as e:
-        print(f"Fehler: {e}")
+        print(f"Error: {e}")
