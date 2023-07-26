@@ -3,6 +3,7 @@ import base64
 import json
 import time
 import yaml
+import csv
 
 with open('../../config.json') as config_file:
     data = json.load(config_file)
@@ -14,7 +15,7 @@ STAMP_START = "2020-01-01T00:00:00.000Z"  # "YYYY-MM-DDTHH:MM:SS.sssZ" Format
 STAMP_END = "2023-07-20T00:00:00.000Z"
 TO_RECTIFY = "2023-04-05T00:00:00.000Z"  # Alles was älter ist, als der 4te April 23
 PROJECT_ID = data['Project_ID']
-FILE_PATH = 'deploymentState.yml'
+FILE_PATH = "deploymentState.yml"
 YAML_OLD = "deployment.yml_DEPRECATED"
 FILTERED_PROJECTS = []
 def connect_to_gitlab():
@@ -67,6 +68,20 @@ def print_formatted_list(list):
             print(f"    {key}: {value}")
         print()
 
+def export_to_csv(data_list):
+    output_file = "customer_data.csv"
+    fieldnames = ["projectId", "projectName", "Hostname new", "Hostname old"]
+
+    try:
+        with open(output_file, mode="w", newline="", encoding="utf-8") as file:
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            writer.writeheader()
+            for item in data_list:
+                writer.writerow(item)
+        print("Data has been successfully written to customer_data.csv.")
+    except Exception as e:
+        print("The error occurred while writing the CSV file:", e)
+
 
 def estimated_time_counter(current_item, total_items, start_time):
     elapsed_time = time.time() - start_time
@@ -79,45 +94,58 @@ def estimated_time_counter(current_item, total_items, start_time):
 def check_file_in_project(project, file_path, branch):
     try:
         file = project.files.get(file_path = file_path, ref = branch)
-        file_content = base64.b64decode(file.content).decode("utf-8")
-        #print("File found in storage!")
-        #print(file_content)
-        return True
+        content = base64.b64decode(file.content).decode("utf-8")
+        yaml_content = yaml.safe_load(content)
+
+        if yaml_content is not None:
+            print("File found in storage!")
+            return yaml_content
     except gitlab.exceptions.GitlabGetError:
         return False
 
 def process_project_files(project, branch_name):
     try:
-        yml_new = None
-        yml_old = None
+        hostname = None
+        hostname_old = None
 
-        if check_file_in_project(project, FILE_PATH, branch_name):
+        file_content = check_file_in_project(project, FILE_PATH, branch_name)
+        file_content_old = check_file_in_project(project, YAML_OLD, branch_name)
+
+        if file_content:    # hier kommt der Hostname der deploymentState.yml an
             print("A file has been found! : deploymentState.yml")
-            with open(FILE_PATH, 'r') as file:
-                new_data = yaml.safe_load(file)
-            yml_new = new_data['configuration']['hostname']
-            print("Data from new YAML", yml_new)
+            #print(file_content['configuration']['hostname'])
+            hostname = file_content['configuration']['hostname']
 
-        if check_file_in_project(project, YAML_OLD, branch_name):
+            if hostname == 'ta.kampf.de':
+                print("Alles richtig! Die Datei 'deploymentState.yml' enthält: ", hostname)
+            else:
+                print("Value ist nicht ta.kampf.de sondern: ", hostname)
+
+
+        if file_content_old:
             print("A file has been found! : deployment.yml_DEPRECATED")
-            with open(YAML_OLD, 'r') as f:
-                old_data = yaml.safe_load(f)
-            yml_old = old_data['hostname']
-            print("Data from old YAML", yml_old)
+            print(file_content_old['hostname'])  # deprecated hat andere structure!
+            hostname_old = file_content_old['hostname']
 
-        if yml_old is None and yml_new is None:
+            if hostname_old == 'ta.kampf.de':
+                print("Alles richtig! Die Datei 'deployment.yml_DEPRECATED' enthält: ", hostname_old)
+            else:
+                print("Der Hostname ist nicht ta.kampf.de sondern:", hostname_old)
+
+        if hostname is None or hostname_old is None:
             print("One or both files not found, or no matching hostnames in the repository.")
-        else:
-            return yml_new, yml_old
+        return hostname, hostname_old
+
 
     except Exception as e:
         print(f"Fehler: {e}", " ", project.name)
         return None, None
 
 
+
 if __name__ == "__main__":
-    yml_old = ""
-    yml_new = ""
+    hostname = ""
+    hostname_old = ""
     try:
         connection = connect_to_gitlab()
         connection.auth()
@@ -139,14 +167,14 @@ if __name__ == "__main__":
                     print("No master or main branch found for project", project.name)
                     break
 
-                yml_new, yml_old = process_project_files(project, branch_name)
+                hostname, hostname_old = process_project_files(project, branch_name) # rückgabe wert aus der oberen Funktion
 
-                if not yml_old == "ta.kampf.de" and yml_new == "ta.kampf.de":
+                if not hostname_old == hostname:
                     dict = {
                         "projectId": project_id,
                         "projectName": project.name,
-                        "Hostname new": yml_new,
-                        "Hostname old": yml_old
+                        "Hostname new": hostname,
+                        "Hostname old": hostname_old
                     }
                     customerList.append(dict)
 
@@ -156,6 +184,7 @@ if __name__ == "__main__":
             eTime = time.time()
             elapsed_time = eTime - sTime
             print(f"\nTotal time taken: {elapsed_time:.2f} seconds")
+            export_to_csv(customerList)
 
     except Exception as e:
         print(f"Fehler: {e}")
