@@ -192,8 +192,9 @@ if __name__ == "__main__":
                 project = connection.projects.get(project_id)
                 print("Project", idx, "of", len(projects), ": ", project.name)
 
-                excluded_branches = (project)
-                if len(filterBranch_all()) > 0:
+                excluded_branches = filterBranch_all()
+
+                if len(excluded_branches) > 0:
                     dict = {
                         "projectId": project_id,
                         "projectName": project.name,
